@@ -1,13 +1,25 @@
 <svg>
     <use id="background" href="#panoramaview">
       <use id="color1" href="#panoramaview-item">
-        <rect width="100%" height="100%" fill="red"/>
+        <rect class="backgroundColor" width="100%" height="100%"/>
       </use>
       <use id="color2" href="#panoramaview-item">
-        <rect width="100%" height="100%" fill="white"/>
+        <rect class="backgroundColor" width="100%" height="100%"/>
       </use>
       <use id="color3" href="#panoramaview-item">
-        <rect width="100%" height="100%" fill="blue"/>
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
       </use>
         
       <use id="pagination-dots" href="#pagination-widget" y="8">
@@ -16,27 +28,29 @@
         <use href="#pagination-dot" />
         <use href="#pagination-dot" />
         <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
         <use href="#pagination-highlight-dot" />
       </use>
-    </use>
+  </use>
   
-    <arc id="backgroundArc" x="30" y="30" height="240" width="240" fill="fb-dark-gray" arc-width="20" start-angle="0" sweep-angle="360"/>
-    <arc id="progressArc" x="30" y="30" height="240" width="240" fill="black" arc-width="20" start-angle="0" sweep-angle="0"/>
+    <arc id="backgroundArc" class="backgroundArcColor"  x="30" y="30" height="240" width="240" arc-width="20" start-angle="0" sweep-angle="360"/>
+    <arc id="progressArc" class="accentColor" x="30" y="30" height="240" width="240" arc-width="20" start-angle="0" sweep-angle="0"/>
   
-    <text id="countdown" x="150" y="160" fill="black" font-family="System-Bold" font-size="45" text-anchor="middle" text-length="12">25:00</text>
-    <text id="sprintCount" x="150" y="210" fill="black" font-family="System-Regular" font-size="30" text-anchor="middle">1 of 4</text>
+    <text id="countdown" class="accentColor" x="150" y="160">00:25:00</text>
+    <text id="sprintCounter" class="baseColor" x="150" y="210">1 of 4</text>
   
-    <use class="cornerButton" id="playButton" href="#combo-button-lower-right" fill="black">
+    <use id="playPauseButton" class="accentColor" href="#combo-button-lower-right">
       <set href="combo-button-icon" attributeName="href" to="play.png"/>
       <set href="combo-button-icon-press" attributeName="href" to="play_press.png"/>
       <set href="combo-button-stroke" attributeName="display" to="inline"/>
     </use>
       
-    <use class="cornerButton" id="pauseButton" href="#combo-button-lower-left" fill="black">
+<!--     <use id="pauseButton" class="accentColor" href="#combo-button-lower-left">
       <set href="combo-button-icon" attributeName="href" to="pause.png"/>
       <set href="combo-button-icon-press" attributeName="href" to="pause_press.png"/>
       <set href="combo-button-stroke" attributeName="display" to="inline"/>
-    </use>
+    </use> -->
   
     
 </svg>

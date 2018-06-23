@@ -1,0 +1,29 @@
+.backgroundColor{
+  fill: "#000000"
+}
+
+.accentColor{
+  fill: "#FF9F1E"; 
+}
+
+.baseColor{
+  fill: "#FFFFFF";
+}
+
+.backgroundArcColor{
+  fill: "#636366";
+}
+
+#countdown{
+  font-family: "System-Bold"; 
+  font-size: "45"; 
+  text-anchor: "middle"; 
+  text-length: "12";
+}
+
+#sprintCounter{
+  font-family: "System-Regular";
+  font-size: "30";
+  text-anchor: "middle";
+}
+
