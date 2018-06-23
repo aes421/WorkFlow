@@ -37,6 +37,7 @@
     <arc id="backgroundArc" class="backgroundArcColor"  x="30" y="30" height="240" width="240" arc-width="20" start-angle="0" sweep-angle="360"/>
     <arc id="progressArc" class="accentColor" x="30" y="30" height="240" width="240" arc-width="20" start-angle="0" sweep-angle="0"/>
   
+    <text id="sessionText" class="baseColor" x="150" y="100">Flow</text>
     <text id="countdown" class="accentColor" x="150" y="160">00:25:00</text>
     <text id="sprintCounter" class="baseColor" x="150" y="210">1 of 4</text>
   
@@ -45,12 +46,6 @@
       <set href="combo-button-icon-press" attributeName="href" to="play_press.png"/>
       <set href="combo-button-stroke" attributeName="display" to="inline"/>
     </use>
-      
-<!--     <use id="pauseButton" class="accentColor" href="#combo-button-lower-left">
-      <set href="combo-button-icon" attributeName="href" to="pause.png"/>
-      <set href="combo-button-icon-press" attributeName="href" to="pause_press.png"/>
-      <set href="combo-button-stroke" attributeName="display" to="inline"/>
-    </use> -->
   
     
 </svg>
