@@ -20,6 +20,9 @@
       </use>
     </use>
   
+    <arc id="backgroundArc" x="30" y="30" height="240" width="240" fill="fb-dark-gray" arc-width="20" start-angle="0" sweep-angle="360"/>
+    <arc id="progressArc" x="30" y="30" height="240" width="240" fill="black" arc-width="20" start-angle="0" sweep-angle="0"/>
+  
     <use class="cornerButton" id="playButton" href="#combo-button-lower-right" fill="black">
       <set href="combo-button-icon" attributeName="href" to="play.png"/>
       <set href="combo-button-icon-press" attributeName="href" to="play_press.png"/>
