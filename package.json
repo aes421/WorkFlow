@@ -1,0 +1,19 @@
+{
+  "fitbit": {
+    "appUUID": "fe63f225-3f27-47fc-9a8c-12261dcf0da9",
+    "appType": "app",
+    "appDisplayName": "ProductivityFlow",
+    "iconFile": "resources/icon.png",
+    "wipeColor": "#8bc34a",
+    "requestedPermissions": [],
+    "buildTargets": [
+      "higgs",
+      "meson"
+    ],
+    "i18n": {
+      "en": {
+        "name": "ProductivityFlow"
+      }
+    }
+  }
+}
