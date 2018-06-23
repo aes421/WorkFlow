@@ -3,6 +3,7 @@
  */
 import document from "document";
 import clock from "clock";
+clock.granularity = "seconds";
 
 let background = document.getElementById("background");
 let play = document.getElementById("playButton");
@@ -14,33 +15,36 @@ let sprintCounter = document.getElementById("sprintCounter");
 let currentIndex = background.value;
 background.value = 0;
 
-clock.granularity = "seconds";
 let intervalInSeconds = 1500;
 let formattedHours = 0;
 let formattedMinutes = 0;
 let formattedSeconds = 0;
-let seconds = 0;
+let seconds = intervalInSeconds;
 
 function secondsToAngle(seconds){
+  //degree per second * elapsedseconds
   return (360/intervalInSeconds) * seconds;
 }
 
 function progress(){
-  seconds += 1;
-  formattedSeconds++;
-  if (formattedSeconds >= 60){
-    formattedMinutes += 1;
-    formattedSeconds = 0;
-    if (formattedMinutes >= 60){
-      formattedHours += 1;
-      formattedMinutes = 0;
-    }
-  }
+  seconds--;
   
-  let a = secondsToAngle(seconds);
+  //calculate and update angle
+  let a = secondsToAngle(intervalInSeconds - seconds);
   progressArc.sweepAngle = a;
-  countdown.text = formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
   
+  //calculate time left
+  formattedHours = Math.floor((seconds/60/60) % 60);
+  formattedMinutes = Math.floor((seconds/60) % 60);
+  formattedSeconds = Math.floor(seconds % 60);
+  
+  //pad with 0
+  formattedHours = formattedHours < 10 ? "0" + formattedHours : formattedHours;
+  formattedMinutes = formattedMinutes < 10 ? "0" + formmatedMinutes : formattedMinutes;
+  formattedSeconds = formattedSeconds < 10 ? "0" + formattedSeconds : formattedSeconds;
+  
+  //update countdown text
+  countdown.text = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 }
 
 clock.ontick = () => progress();
