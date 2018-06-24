@@ -2,8 +2,9 @@
  * Entry point for the watch app
  */
 import document from "document";
-import clock from "clock";
-clock.granularity = "seconds";
+import * as messaging from "messaging";
+import * as fs from "fs";
+import { vibration } from "haptics";
 import { style } from "./style.js"
 
 //grab screen elements
@@ -27,26 +28,39 @@ const breakText = "Break";
 let formattedHours = 0;
 let formattedMinutes = 0;
 let formattedSeconds = 0;
-let seconds = flowInSeconds;
 let counting = false;
+let countdownSeconds = flowInSeconds;
 
 //used to toggle between flow sessions and breaks
 let flow = true;
 let sessionTime = flowInSeconds;
 let currentSprint = 1;
 
-console.log(style);
+readFile();
 style();
-clock.ontick = () => progress();
+//clock.tick does not run in background so use setInterval instead
+setInterval(() => progress(), 1000)
 playPauseButton.onactivate = (evt) => {
-  //countingdown
-  if (counting){
-    pause();
-  } //paused
-  else{
-    play();
-  }
-  
+  counting ? pause() : play();
+}
+
+messaging.peerSocket.onmessage = (evt)=>{
+  //persist
+  writeToFile(evt);
+  readFile();
+}
+
+function writeToFile(evt){
+  fs.writeFileSync("flowSettings.txt", evt.data, "cbor");
+}
+
+function readFile(){
+  let settings = fs.readFileSync("flowSettings.txt", "cbor");
+  flowInSeconds = parseInt(settings.flowTime)*60;
+  shortBreakInSeconds = parseInt(settings.shortBreakTime)*60;
+  longBreakInSeconds = parseInt(settings.longBreakTime)*60;
+  countdownSeconds = flowInSeconds;
+  sessionTime = flowInSeconds;
 }
 
 function secondsToAngle(seconds){
@@ -56,14 +70,18 @@ function secondsToAngle(seconds){
 
 function progress(){
   if (counting){
-    if( !isSprintOver(seconds) ) {
-      seconds--;
+    if( !isSprintOver(countdownSeconds) ) {
+      countdownSeconds--;
       //calculate and update angle
-      progressArc.sweepAngle = secondsToAngle(sessionTime - seconds);
+      const sweepAnimation = progressArc.getElementById("sweepAnimation");
+      sweepAnimation.final = secondsToAngle(sessionTime - countdownSeconds);
+      sweepAnimation.easing = "ease-in";
+      sweepAnimation.dur = "1";
+      progressArc.sweepAngle = secondsToAngle(sessionTime - countdownSeconds);
     }
   }
   
-  formatCountdown(seconds);
+  formatCountdown(countdownSeconds);
 }
 
 function isSprintOver(seconds){
@@ -81,7 +99,8 @@ function nextSprint(){
   
   if (flow){ 
     setupSession(flowInSeconds, flowText);
-    currentSprint++;
+    currentSprint < sprints ? currentSprint++ : currentSprint = 1;
+    
     sprintCounter.text = `${currentSprint} of ${sprints}`
   }
   else { 
@@ -92,6 +111,8 @@ function nextSprint(){
       setupSession(longBreakInSeconds, breakText);
     }
   }
+  
+  vibration.start("nudge");
 }
 
 function setupSession(nextSessionSeconds, text){
@@ -100,7 +121,7 @@ function setupSession(nextSessionSeconds, text){
   //update session text
   sessionText.text = text;
   //set the correct seconds for progress
-  sessionTime = seconds = nextSessionSeconds;
+  sessionTime = countdownSeconds = nextSessionSeconds;
   
 }
 
