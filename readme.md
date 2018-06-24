@@ -7,15 +7,11 @@ The user will complete a set of 4 sprints, with the first 3 followed by a short 
 ![](https://github.com/aes421/WorkFlow/blob/master/photos/Sample3.PNG?raw=true)
 # Upcoming
 This app is still currently in development.  Future enhancements include:
-..* Compatibility with FitBit Ionic
-..* Ability to exit app without losing progress
-..* Make your own color combos
-..* Save user settings for color
-..* Animated Progress Bar
-
-## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+* Compatibility with FitBit Ionic
+* Ability to exit app without losing progress
+* Make your own color combos
+* Save user settings for color
+* Animated Progress Bar
 
 ### Installing
 
@@ -30,5 +26,3 @@ End with an example of getting some data out of the system or using it for a lit
 ## Authors
 
 * **Ashley Stallings Rhodes** - *Initial work* - [aes421](https://github.com/aes421)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
