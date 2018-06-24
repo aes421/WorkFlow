@@ -7,7 +7,6 @@ The user will complete a set of 4 sprints, with the first 3 followed by a short 
 ![](https://github.com/aes421/WorkFlow/blob/master/photos/Sample3.PNG?raw=true)
 # Upcoming
 This app is still currently in development.  Future enhancements include:
-* Compatibility with FitBit Ionic
 * Ability to exit app without losing progress
 * Make your own color combos
 * Save user settings for color

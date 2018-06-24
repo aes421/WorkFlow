@@ -1,0 +1,63 @@
+<svg>
+    <use id="background" href="#panoramaview">
+      <use id="color1" href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use id="color2" href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use id="color3" href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+      <use href="#panoramaview-item">
+        <rect class="backgroundColor" width="100%" height="100%"/>
+      </use>
+        
+      <use id="pagination-dots" href="#pagination-widget" y="8">
+        <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
+        <use href="#pagination-dot" />
+        <use href="#pagination-highlight-dot" />
+      </use>
+  </use>
+  
+  
+  
+    <text id="time" class="baseColor" x="313" y="25">12:00</text>
+  
+    <arc id="backgroundArc" class="backgroundArcColor"  x="64" y="23" height="220" width="220" arc-width="20" start-angle="0" sweep-angle="360"/>
+    <arc id="progressArc" class="accentColor" x="64" y="23" height="220" width="220" arc-width="20" start-angle="0" sweep-angle="0"/>
+  
+    <text id="currentIntervalText" class="baseColor" x="174" y="93">Flow</text>
+    <text id="countdown" class="accentColor" x="174" y="143">00:00:00</text>
+    <text id="sprintCounter" class="baseColor" x="174" y="183">1 of 4</text>
+  
+    <use id="playPauseButton" class="accentColor" href="#combo-button-lower-right">
+      <set href="combo-button-icon" attributeName="href" to="play.png"/>
+      <set href="combo-button-icon-press" attributeName="href" to="play_press.png"/>
+      <set href="combo-button-stroke" attributeName="display" to="inline"/>
+    </use>
+  
+    <use id="restartSkipButton" class="accentColor" href="#combo-button-lower-left">
+      <set href="combo-button-icon" attributeName="href" to="skip.png"/>
+      <set href="combo-button-icon-press" attributeName="href" to="skip_press.png"/>
+      <set href="combo-button-stroke" attributeName="display" to="inline"/>
+    </use>
+  
+  
+  
+    
+</svg>

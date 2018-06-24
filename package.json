@@ -5,9 +5,12 @@
     "appDisplayName": "WorkFlow",
     "iconFile": "resources/icon.png",
     "wipeColor": "#8bc34a",
-    "requestedPermissions": [],
+    "requestedPermissions": [
+      "access_user_profile"
+    ],
     "buildTargets": [
-      "meson"
+      "meson",
+      "higgs"
     ],
     "i18n": {
       "en": {
