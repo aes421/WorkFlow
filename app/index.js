@@ -3,41 +3,36 @@
  */
 import document from "document";
 import * as messaging from "messaging";
+import { display } from "display";
 import * as fs from "fs";
 import clock from "clock";
 clock.granularity = "minutes";
 import { preferences } from "user-settings";
 import { vibration } from "haptics";
-import { style } from "./style.js"
+import { style, stopStyle } from "./style.js"
 
 //grab screen elements
 const time = document.getElementById("time");
 const progressArc = document.getElementById("progressArc");
 const countdown = document.getElementById("countdown");
 const sprintCounter = document.getElementById("sprintCounter");
-const sessionText = document.getElementById("sessionText");
+const currentIntervalText = document.getElementById("currentIntervalText");
 const playPauseButton = document.getElementById("playPauseButton");
 const playPauseIcon = playPauseButton.getElementById("combo-button-icon");
 const playPauseIconPressed = playPauseButton.getElementById("combo-button-icon-press");
 
 
-const flowInSeconds = 5;//1500;
-const shortBreakInSeconds = 10;//300;
-const longBreakInSeconds = 15;//900;
-const sprints = 4;
+const totalFlowInSeconds = 5; //1500;
+const totalShortBreakInSeconds = 10;//300;
+const totalLongBreakInSeconds = 15;//900;
+const totalSprints = 4;
 const flowText = "Flow";
 const breakText = "Break";
 
-
-let formattedHours = 0;
-let formattedMinutes = 0;
-let formattedSeconds = 0;
 let counting = false;
-let countdownSeconds = flowInSeconds;
-
-
-let flow = true; //used to toggle between flow sessions and breaks
-let sessionTime = flowInSeconds;
+let countdownSeconds = totalFlowInSeconds; 
+let flow = true; //used to toggle between flow intervals and breaks
+let currentIntervalTime;
 let currentSprint = 1;
 
 //setup clock
@@ -51,11 +46,15 @@ clock.ontick = (evt) => {
 }
 
 setupWithUserSettings();
-style();
+style(display);
 //clock.tick does not run in background so use setInterval instead
 setInterval(() => progress(), 1000)
 playPauseButton.onactivate = (evt) => {
   counting ? pause() : play();
+}
+
+display.onchange = () => { // optimize battery life
+    display.on ? style() : stopStyle();
 }
 
 messaging.peerSocket.onmessage = (evt)=>{
@@ -68,41 +67,32 @@ messaging.peerSocket.onmessage = (evt)=>{
 
 
 function writeToFile(evt){
+  let log = 'write to file: {';
+  for (var prop in evt.data){
+    log += ` ${prop}:${evt.data[prop]}`;  
+  }
+  console.log(log + " }");
   fs.writeFileSync("flowSettings.txt", evt.data, "cbor");
 }
 
-function setupWithUserSettings(){
-  try {
-    fs.readFileSync("flowSettings.txt", "cbor")
-  }
-  catch(err){
-    writeToFile({data : {flowTime: 0, shortBreakTime: 0, longBreakTime: 0}});
-  }
-  let settings = fs.readFileSync("flowSettings.txt", "cbor");
-  
-  //setup consts based on user settings
-  flowInSeconds = settings.flowTime == 0 ? flowInSeconds : parseInt(settings.flowTime)*60;
-  shortBreakInSeconds = settings.shortBreakTime == 0?  shortBreakInSeconds : parseInt(settings.shortBreakTime)*60;
-  longBreakInSeconds = settings.longBreakTime == 0 ? longBreakInSeconds : parseInt(settings.longBreakTime)*60;
-  setupSession(flowInSeconds, flowText);
-}
-
-
 function secondsToAngle(seconds){
   //degree per second * elapsedseconds
-  return (360/sessionTime) * seconds;
+  return (360/currentIntervalTime) * seconds;
 }
 
 function progress(){
   if (counting){
     if( !isSprintOver(countdownSeconds) ) {
       countdownSeconds--;
+    }
+    if (display.on) {
       //calculate and update angle
-      progressArc.sweepAngle = secondsToAngle(sessionTime - countdownSeconds);
+      progressArc.sweepAngle = secondsToAngle(currentIntervalTime - countdownSeconds);
     }
   }
-  
-  formatCountdown(countdownSeconds);
+  if (display.on) {
+    formatCountdown(countdownSeconds);
+  }
 }
 
 function isSprintOver(seconds){
@@ -115,34 +105,50 @@ function isSprintOver(seconds){
 }
 
 function nextSprint(){
-  //swap session type
+  //swap interval type
   flow = !flow;
   
   if (flow){ 
-    setupSession(flowInSeconds, flowText);
-    currentSprint < sprints ? currentSprint++ : currentSprint = 1;
+    setupNextInterval(totalFlowInSeconds, flowText);
+    currentSprint < totalSprints ? currentSprint++ : currentSprint = 1;
     
-    sprintCounter.text = `${currentSprint} of ${sprints}`
+    sprintCounter.text = `${currentSprint} of ${totalSprints}`
   }
   else { 
-    if(currentSprint < sprints){
-      setupSession(shortBreakInSeconds, breakText);
+    if(currentSprint < totalSprints){
+      setupNextInterval(totalShortBreakInSeconds, breakText);
     }
     else{
-      setupSession(longBreakInSeconds, breakText);
+      setupNextInterval(totalLongBreakInSeconds, breakText);
     }
   }
   
   vibration.start("nudge");
 }
 
-function setupSession(nextSessionSeconds, text){
+function setupWithUserSettings(){
+  try {
+    fs.readFileSync("flowSettings.txt", "cbor")
+  }
+  catch(err){
+    writeToFile({data : {flowTime: 0, shortBreakTime: 0, longBreakTime: 0}});
+  }
+  let settings = fs.readFileSync("flowSettings.txt", "cbor");
+  
+  //setup consts based on user settings
+  totalFlowInSeconds = settings.flowTime == 0 ? totalFlowInSeconds : parseInt(settings.flowTime)*60;
+  totalShortBreakInSeconds = settings.shortBreakTime == 0?  totalShortBreakInSeconds : parseInt(settings.shortBreakTime)*60;
+  totalLongBreakInSeconds = settings.longBreakTime == 0 ? totalLongBreakInSeconds : parseInt(settings.longBreakTime)*60;
+  setupNextInterval(totalFlowInSeconds, flowText);
+}
+
+function setupNextInterval(nextIntervalSeconds, text){
   //change the arc back to 0
   progressArc.sweepAngle = 0;
-  //update session text
-  sessionText.text = text;
+  //update interval text
+  currentIntervalText.text = text;
   //set the correct seconds for progress
-  sessionTime = countdownSeconds = nextSessionSeconds;
+  currentIntervalTime = countdownSeconds = nextIntervalSeconds;
 }
 
 function play(){
@@ -159,9 +165,9 @@ function pause(){
 
 function formatCountdown(seconds){
   //calculate time left
-    formattedHours = Math.floor((seconds/60/60) % 60);
-    formattedMinutes = Math.floor((seconds/60) % 60);
-    formattedSeconds = Math.floor(seconds % 60);
+    let formattedHours = Math.floor((seconds/60/60) % 60);
+    let formattedMinutes = Math.floor((seconds/60) % 60);
+    let formattedSeconds = Math.floor(seconds % 60);
 
     //pad with 0
     formattedHours = formattedHours < 10 ? "0" + formattedHours : formattedHours;

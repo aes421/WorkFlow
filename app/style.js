@@ -10,29 +10,32 @@ const backgroundArc = document.getElementById("backgroundArc");
 const countdown = document.getElementById("countdown");
 const sprintCounter = document.getElementById("sprintCounter");
 const playPauseButton = document.getElementById("playPauseButton");
-const playPauseIcon = playPauseButton.getElementById("combo-button-icon");
-const playPauseIconPressed = playPauseButton.getElementById("combo-button-icon-press");
 const oldBackground = background.value;
 
+let styleInterval;
+
 export function style(){
-  
-  
   //check if they changed the background every 100 ms
-  setInterval(()=>{
-  if(background.value != oldBackground){
-    applyStyle(background.value);
-    oldBackground = background.value;
-  }}, 100);
+  styleInterval = setInterval(()=>{
+    if(background.value != oldBackground){
+      applyStyle(background.value);
+      oldBackground = background.value;
+    }}, 500);
+}
+
+export function stopStyle(){ // optimize battery life
+  console.log("screen off.  No style interval necessary");
+  clearInterval(styleInterval);
 }
 
 function applyStyle(value){
   let colorProfile = styleProfiles[value];
+  
   backgroundColor[value].style.fill = colorProfile.background;
   progressArc.style.fill = colorProfile.accentColor;
   backgroundArc.style.fill = colorProfile.backgroundArc;
   countdown.style.fill = colorProfile.accentColor;
   playPauseButton.style.fill = colorProfile.accentColor;
-  // pauseButton.style.fill = colorProfile.accentColor;
   sprintCounter.style.fill = colorProfile.baseColor;
 }
 
