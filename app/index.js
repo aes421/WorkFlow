@@ -4,10 +4,14 @@
 import document from "document";
 import * as messaging from "messaging";
 import * as fs from "fs";
+import clock from "clock";
+clock.granularity = "minutes";
+import { preferences } from "user-settings";
 import { vibration } from "haptics";
 import { style } from "./style.js"
 
 //grab screen elements
+const time = document.getElementById("time");
 const progressArc = document.getElementById("progressArc");
 const countdown = document.getElementById("countdown");
 const sprintCounter = document.getElementById("sprintCounter");
@@ -31,12 +35,22 @@ let formattedSeconds = 0;
 let counting = false;
 let countdownSeconds = flowInSeconds;
 
-//used to toggle between flow sessions and breaks
-let flow = true;
+
+let flow = true; //used to toggle between flow sessions and breaks
 let sessionTime = flowInSeconds;
 let currentSprint = 1;
 
-readFile();
+//setup clock
+clock.ontick = (evt) => {
+  let hours = evt.date.getHours();
+  let minutes = evt.date.getMinutes();
+  hours = hours > 12 && preferences.clockDisplay === "12h" ? hours - 12 : hours;
+  hours = hours < 10 ? "0" + hours : hours;
+  minutes = minutes < 10 ? "0" + minutes : minutes;
+  time.text = `${hours}:${minutes}`;
+}
+
+setupWithUserSettings();
 style();
 //clock.tick does not run in background so use setInterval instead
 setInterval(() => progress(), 1000)
@@ -47,21 +61,32 @@ playPauseButton.onactivate = (evt) => {
 messaging.peerSocket.onmessage = (evt)=>{
   //persist
   writeToFile(evt);
-  readFile();
+  setupWithUserSettings();
 }
+
+
+
 
 function writeToFile(evt){
   fs.writeFileSync("flowSettings.txt", evt.data, "cbor");
 }
 
-function readFile(){
+function setupWithUserSettings(){
+  try {
+    fs.readFileSync("flowSettings.txt", "cbor")
+  }
+  catch(err){
+    writeToFile({data : {flowTime: 0, shortBreakTime: 0, longBreakTime: 0}});
+  }
   let settings = fs.readFileSync("flowSettings.txt", "cbor");
-  flowInSeconds = parseInt(settings.flowTime)*60;
-  shortBreakInSeconds = parseInt(settings.shortBreakTime)*60;
-  longBreakInSeconds = parseInt(settings.longBreakTime)*60;
-  countdownSeconds = flowInSeconds;
-  sessionTime = flowInSeconds;
+  
+  //setup consts based on user settings
+  flowInSeconds = settings.flowTime == 0 ? flowInSeconds : parseInt(settings.flowTime)*60;
+  shortBreakInSeconds = settings.shortBreakTime == 0?  shortBreakInSeconds : parseInt(settings.shortBreakTime)*60;
+  longBreakInSeconds = settings.longBreakTime == 0 ? longBreakInSeconds : parseInt(settings.longBreakTime)*60;
+  setupSession(flowInSeconds, flowText);
 }
+
 
 function secondsToAngle(seconds){
   //degree per second * elapsedseconds
@@ -73,10 +98,6 @@ function progress(){
     if( !isSprintOver(countdownSeconds) ) {
       countdownSeconds--;
       //calculate and update angle
-      const sweepAnimation = progressArc.getElementById("sweepAnimation");
-      sweepAnimation.final = secondsToAngle(sessionTime - countdownSeconds);
-      sweepAnimation.easing = "ease-in";
-      sweepAnimation.dur = "1";
       progressArc.sweepAngle = secondsToAngle(sessionTime - countdownSeconds);
     }
   }
@@ -122,7 +143,6 @@ function setupSession(nextSessionSeconds, text){
   sessionText.text = text;
   //set the correct seconds for progress
   sessionTime = countdownSeconds = nextSessionSeconds;
-  
 }
 
 function play(){

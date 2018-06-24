@@ -15,7 +15,7 @@ const playPauseIconPressed = playPauseButton.getElementById("combo-button-icon-p
 const oldBackground = background.value;
 
 export function style(){
-  background.value = 0;
+  
   
   //check if they changed the background every 100 ms
   setInterval(()=>{
