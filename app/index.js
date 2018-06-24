@@ -20,6 +20,8 @@ const currentIntervalText = document.getElementById("currentIntervalText");
 const playPauseButton = document.getElementById("playPauseButton");
 const playPauseIcon = playPauseButton.getElementById("combo-button-icon");
 const playPauseIconPressed = playPauseButton.getElementById("combo-button-icon-press");
+const restartSkipButton = document.getElementById("restartSkipButton");
+const restartSkipIcon = restartSkipButton.getElementById("combo-button-icon");
 
 
 const totalFlowInSeconds = 5; //1500;
@@ -33,6 +35,7 @@ let counting = false;
 let countdownSeconds = totalFlowInSeconds; 
 let flow = true; //used to toggle between flow intervals and breaks
 let currentIntervalTime;
+let currentIntervalText;
 let currentSprint = 1;
 
 //setup clock
@@ -51,6 +54,10 @@ style(display);
 setInterval(() => progress(), 1000)
 playPauseButton.onactivate = (evt) => {
   counting ? pause() : play();
+}
+
+restartSkipButton.onactivate = (evt) => {
+  counting ? restart() : skip();
 }
 
 display.onchange = () => { // optimize battery life
@@ -149,18 +156,33 @@ function setupNextInterval(nextIntervalSeconds, text){
   currentIntervalText.text = text;
   //set the correct seconds for progress
   currentIntervalTime = countdownSeconds = nextIntervalSeconds;
+  currentIntervalText = text;
 }
 
 function play(){
     counting = true;
     playPauseIcon.image = "pause.png";
     playPauseIconPressed.image = "pause_press.png";
+  
+    restartSkipIcon.image = "reset.png";
 }
 
 function pause(){
-    counting = false
+    counting = false;
     playPauseIcon.image = "play.png";
     playPauseIconPressed.image = "play_press.png";
+  
+    restartSkipIcon.image = "skip.png";
+}
+
+function skip(){
+  counting = false;
+  nextSprint();
+}
+
+function restart(){
+  pause();
+  setupNextInterval(currentIntervalTime, currentIntervalText);
 }
 
 function formatCountdown(seconds){

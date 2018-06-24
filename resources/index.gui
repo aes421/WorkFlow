@@ -49,5 +49,13 @@
       <set href="combo-button-stroke" attributeName="display" to="inline"/>
     </use>
   
+    <use id="restartSkipButton" class="accentColor" href="#combo-button-lower-left">
+      <set href="combo-button-icon" attributeName="href" to="skip.png"/>
+      <set href="combo-button-icon-press" attributeName="href" to="skip_press.png"/>
+      <set href="combo-button-stroke" attributeName="display" to="inline"/>
+    </use>
+  
+  
+  
     
 </svg>
