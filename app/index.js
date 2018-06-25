@@ -4,6 +4,7 @@
 import document from "document";
 import * as messaging from "messaging";
 import { display } from "display";
+import { me } from "appbit";
 import * as fs from "fs";
 import clock from "clock";
 clock.granularity = "minutes";
@@ -24,7 +25,8 @@ const restartSkipButton = document.getElementById("restartSkipButton");
 const restartSkipIcon = restartSkipButton.getElementById("combo-button-icon");
 
 
-const totalFlowInSeconds = 5; //1500;
+//Default these incase they haven't setup custom times on mobile app
+const totalFlowInSeconds = 1500;
 const totalShortBreakInSeconds = 10;//300;
 const totalLongBreakInSeconds = 15;//900;
 const totalSprints = 4;
@@ -35,13 +37,14 @@ let counting = false;
 let countdownSeconds = totalFlowInSeconds; 
 let flow = true; //used to toggle between flow intervals and breaks
 let currentIntervalTime;
-let currentIntervalText;
 let currentSprint = 1;
 
 //setup clock
 clock.ontick = (evt) => {
-  let hours = evt.date.getHours();
-  let minutes = evt.date.getMinutes();
+  let hours;
+  let minutes;
+  hours = evt.date.getHours();
+  minutes = evt.date.getMinutes();
   hours = hours > 12 && preferences.clockDisplay === "12h" ? hours - 12 : hours;
   hours = hours < 10 ? "0" + hours : hours;
   minutes = minutes < 10 ? "0" + minutes : minutes;
@@ -66,20 +69,25 @@ display.onchange = () => { // optimize battery life
 
 messaging.peerSocket.onmessage = (evt)=>{
   //persist
-  writeToFile(evt);
+  writeToFile(evt.data, "flowSettings.txt");
   setupWithUserSettings();
 }
 
+me.onunload = () => {
+  //save data on exit
+  let text = flow ? flowText : breakText;
+  writeToFile({closeTime: Date.now(), timeLeft: countdownSeconds, text: text, state: currentIntervalTime, flow: flow, sprint: currentSprint, counting: counting},"saveState.txt");
+}
 
 
-
-function writeToFile(evt){
-  let log = 'write to file: {';
-  for (var prop in evt.data){
-    log += ` ${prop}:${evt.data[prop]}`;  
+function writeToFile(data, fileName){
+  let log;
+  log = 'write to file: {';
+  for (var prop in data){
+    log += ` ${prop}:${data[prop]}`;  
   }
   console.log(log + " }");
-  fs.writeFileSync("flowSettings.txt", evt.data, "cbor");
+  fs.writeFileSync(fileName, data, "cbor");
 }
 
 function secondsToAngle(seconds){
@@ -116,17 +124,16 @@ function nextSprint(){
   flow = !flow;
   
   if (flow){ 
-    setupNextInterval(totalFlowInSeconds, flowText);
     currentSprint < totalSprints ? currentSprint++ : currentSprint = 1;
-    
-    sprintCounter.text = `${currentSprint} of ${totalSprints}`
+    setupNextInterval(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, currentSprint);
+
   }
   else { 
     if(currentSprint < totalSprints){
-      setupNextInterval(totalShortBreakInSeconds, breakText);
+      setupNextInterval(totalShortBreakInSeconds, totalShortBreakInSeconds, breakText, 0, currentSprint);
     }
     else{
-      setupNextInterval(totalLongBreakInSeconds, breakText);
+      setupNextInterval(totalLongBreakInSeconds, totalLongBreakInSeconds, breakText, 0, currentSprint);
     }
   }
   
@@ -134,29 +141,56 @@ function nextSprint(){
 }
 
 function setupWithUserSettings(){
+  let settings;
   try {
-    fs.readFileSync("flowSettings.txt", "cbor")
+    settings = fs.readFileSync("flowSettings.txt", "cbor");
   }
   catch(err){
-    writeToFile({data : {flowTime: 0, shortBreakTime: 0, longBreakTime: 0}});
+    settings = {flowTime: 0, shortBreakTime: 0, longBreakTime: 0}
+    writeToFile({flowTime: 0, shortBreakTime: 0, longBreakTime: 0}, "flowSettings.txt");
   }
-  let settings = fs.readFileSync("flowSettings.txt", "cbor");
-  
   //setup consts based on user settings
   totalFlowInSeconds = settings.flowTime == 0 ? totalFlowInSeconds : parseInt(settings.flowTime)*60;
   totalShortBreakInSeconds = settings.shortBreakTime == 0?  totalShortBreakInSeconds : parseInt(settings.shortBreakTime)*60;
   totalLongBreakInSeconds = settings.longBreakTime == 0 ? totalLongBreakInSeconds : parseInt(settings.longBreakTime)*60;
-  setupNextInterval(totalFlowInSeconds, flowText);
+  
+  //pick up where the user ended
+  try {
+    //{closeTime: Date.now(), timeLeft: countdownSeconds, text: text, state: currentIntervalTime, sprint: currentSprint, counting: counting}
+    let saveState = fs.readFileSync("saveState.txt", "cbor");
+    //secondsLeft when app closed - seconds passed since exit
+    let secondsLeft = saveState.timeLeft - ((Date.now() - parseInt(saveState.closeTime))/1000);
+    secondsLeft <= 0 ? 0 : Math.ceil(secondsLeft);
+    countdownSeconds = saveState.secondsLeft; 
+    flow = saveState.flow;
+    currentIntervalTime = saveState.state;
+    currentSprint = saveState.sprint;
+    if (secondsLeft <= 0){
+      pause();
+      nextSprint();
+    }
+    else{
+      saveState.counting ? play() : pause();
+      currentIntervalTime = saveState.state;
+      setupNextInterval(currentIntervalTime, countDownseconds, saveState.text, secondsToAngle(currentIntervalTime - countDownseconds), currentSprint);
+    }
+  }
+  catch (err) {
+    console.log(err);
+    setupNextInterval(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, currentSprint);
+  } 
 }
 
-function setupNextInterval(nextIntervalSeconds, text){
+function setupNextInterval(nextIntervalSeconds, secondsLeft, text, angleLeft, currentSprint){
   //change the arc back to 0
-  progressArc.sweepAngle = 0;
+  progressArc.sweepAngle = angleLeft;
   //update interval text
   currentIntervalText.text = text;
   //set the correct seconds for progress
-  currentIntervalTime = countdownSeconds = nextIntervalSeconds;
-  currentIntervalText = text;
+  currentIntervalTime = nextIntervalSeconds;
+  countdownSeconds = secondsLeft;
+  currentIntervalText.text = text;
+  sprintCounter.text = `${currentSprint} of ${totalSprints}`;
 }
 
 function play(){
@@ -182,20 +216,20 @@ function skip(){
 
 function restart(){
   pause();
-  setupNextInterval(currentIntervalTime, currentIntervalText);
+  setupNextInterval(currentIntervalTime, currentIntervalTime, flow ? flowText : breakText, 0, currentSprint);
 }
 
 function formatCountdown(seconds){
   //calculate time left
-    let formattedHours = Math.floor((seconds/60/60) % 60);
-    let formattedMinutes = Math.floor((seconds/60) % 60);
-    let formattedSeconds = Math.floor(seconds % 60);
+  let formattedHours = Math.floor((seconds/60/60) % 60);
+  let formattedMinutes = Math.floor((seconds/60) % 60);
+  let formattedSeconds = Math.floor(seconds % 60);
 
-    //pad with 0
-    formattedHours = formattedHours < 10 ? "0" + formattedHours : formattedHours;
-    formattedMinutes = formattedMinutes < 10 ? "0" + formattedMinutes : formattedMinutes;
-    formattedSeconds = formattedSeconds < 10 ? "0" + formattedSeconds : formattedSeconds;
+  //pad with 0
+  formattedHours = formattedHours < 10 ? "0" + formattedHours : formattedHours;
+  formattedMinutes = formattedMinutes < 10 ? "0" + formattedMinutes : formattedMinutes;
+  formattedSeconds = formattedSeconds < 10 ? "0" + formattedSeconds : formattedSeconds;
 
-    //update countdown text
-    countdown.text = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  //update countdown text
+  countdown.text = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 }

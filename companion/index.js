@@ -5,6 +5,7 @@ import { settingsStorage } from "settings";
 import { me } from "companion";
 import * as messaging from "messaging";
 
+
 // Event fires when a setting is changed
 settingsStorage.onchange = (evt) => { sendSettings(); }
 
@@ -18,9 +19,9 @@ function sendSettings(){
   let shortTime = settingsStorage.getItem("shortBreakTimeSlider")
   let longTime = settingsStorage.getItem("longBreakTimeSlider")
   let data = {
-      flowTime : flowTime.substring(1, flowTime.length-1),
-      shortBreakTime : shortTime.substring(1, shortTime.length-1),
-      longBreakTimeSlider : longTime.substring(1, longTime.length-1)
+      flowTime : flowTime ? flowTime.substring(1, flowTime.length-1) : 0,
+      shortBreakTime : shortTime ? shortTime.substring(1, shortTime.length-1) : 0,
+      longBreakTime : longTime ? longTime.substring(1, longTime.length-1) : 0
   }
   
   // If we have a MessageSocket, send the data to the device

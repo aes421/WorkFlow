@@ -6,10 +6,10 @@ import document from "document";
 const background = document.getElementById("background");
 const backgroundColor = document.getElementsByClassName("backgroundColor")
 const progressArc = document.getElementById("progressArc");
-const backgroundArc = document.getElementById("backgroundArc");
 const countdown = document.getElementById("countdown");
 const sprintCounter = document.getElementById("sprintCounter");
 const playPauseButton = document.getElementById("playPauseButton");
+const restartSkipButton = document.getElementById("restartSkipButton");
 const oldBackground = background.value;
 
 let styleInterval;
@@ -28,14 +28,16 @@ export function stopStyle(){ // optimize battery life
   clearInterval(styleInterval);
 }
 
+let colorProfile;
 function applyStyle(value){
-  let colorProfile = styleProfiles[value];
+  colorProfile = styleProfiles[value];
   
   backgroundColor[value].style.fill = colorProfile.background;
   progressArc.style.fill = colorProfile.accentColor;
   backgroundArc.style.fill = colorProfile.backgroundArc;
   countdown.style.fill = colorProfile.accentColor;
   playPauseButton.style.fill = colorProfile.accentColor;
+  restartSkipButton.style.fill = colorProfile.accentColor;
   sprintCounter.style.fill = colorProfile.baseColor;
 }
 
