@@ -161,7 +161,7 @@ function setupWithUserSettings(){
     //secondsLeft when app closed - seconds passed since exit
     let secondsLeft = saveState.timeLeft - ((Date.now() - parseInt(saveState.closeTime))/1000);
     secondsLeft <= 0 ? 0 : Math.ceil(secondsLeft);
-    countdownSeconds = saveState.secondsLeft; 
+    countdownSeconds = secondsLeft; 
     flow = saveState.flow;
     currentIntervalTime = saveState.state;
     currentSprint = saveState.sprint;
@@ -171,8 +171,7 @@ function setupWithUserSettings(){
     }
     else{
       saveState.counting ? play() : pause();
-      currentIntervalTime = saveState.state;
-      setupNextInterval(currentIntervalTime, countDownseconds, saveState.text, secondsToAngle(currentIntervalTime - countDownseconds), currentSprint);
+      setupNextInterval(currentIntervalTime, countdownSeconds, saveState.text, secondsToAngle(currentIntervalTime - countdownSeconds), currentSprint);
     }
   }
   catch (err) {

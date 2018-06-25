@@ -6,6 +6,7 @@ import document from "document";
 const background = document.getElementById("background");
 const backgroundColor = document.getElementsByClassName("backgroundColor")
 const progressArc = document.getElementById("progressArc");
+const backgroundArc = document.getElementById("backgroundArc");
 const countdown = document.getElementById("countdown");
 const sprintCounter = document.getElementById("sprintCounter");
 const playPauseButton = document.getElementById("playPauseButton");
