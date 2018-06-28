@@ -21,13 +21,13 @@
   text-length: "12";
 }
 
-#sprintCounter{
+#setCounter{
   font-family: "System-Regular";
   font-size: "30";
   text-anchor: "middle";
 }
 
-#currentIntervalText{
+#currentSprintText{
   font-family: "System-Regular";
   font-size: "30";
   text-anchor: "middle";

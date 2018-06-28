@@ -4,11 +4,11 @@ import document from "document";
 
 //grab screen elements
 const background = document.getElementById("background");
-const backgroundColor = document.getElementsByClassName("backgroundColor")
+const backgroundColor = document.getElementsByClassName("backgroundColor");
 const progressArc = document.getElementById("progressArc");
 const backgroundArc = document.getElementById("backgroundArc");
 const countdown = document.getElementById("countdown");
-const sprintCounter = document.getElementById("sprintCounter");
+const setCounter = document.getElementById("setCounter");
 const playPauseButton = document.getElementById("playPauseButton");
 const restartSkipButton = document.getElementById("restartSkipButton");
 const oldBackground = background.value;
@@ -39,7 +39,7 @@ function applyStyle(value){
   countdown.style.fill = colorProfile.accentColor;
   playPauseButton.style.fill = colorProfile.accentColor;
   restartSkipButton.style.fill = colorProfile.accentColor;
-  sprintCounter.style.fill = colorProfile.baseColor;
+  setCounter.style.fill = colorProfile.baseColor;
 }
 
 const styleProfiles = [

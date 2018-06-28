@@ -41,9 +41,9 @@
     <arc id="backgroundArc" class="backgroundArcColor"  x="64" y="23" height="220" width="220" arc-width="20" start-angle="0" sweep-angle="360"/>
     <arc id="progressArc" class="accentColor" x="64" y="23" height="220" width="220" arc-width="20" start-angle="0" sweep-angle="0"/>
   
-    <text id="currentIntervalText" class="baseColor" x="174" y="93">Flow</text>
+    <text id="currentSprintText" class="baseColor" x="174" y="93">Flow</text>
     <text id="countdown" class="accentColor" x="174" y="143">00:00:00</text>
-    <text id="sprintCounter" class="baseColor" x="174" y="183">1 of 4</text>
+    <text id="setCounter" class="baseColor" x="174" y="183">1 of 4</text>
   
     <use id="playPauseButton" class="accentColor" href="#combo-button-lower-right">
       <set href="combo-button-icon" attributeName="href" to="play.png"/>

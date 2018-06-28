@@ -1,5 +1,8 @@
 /*
- * Entry point for the watch app
+ * Terminology:
+ * 1 Session is made up for 4 Sets
+ * 1 Set is made up of 2 Sprints
+ * Each Sprint is either a Flow Sprint of a Break Sprint
  */
 import document from "document";
 import * as messaging from "messaging";
@@ -11,33 +14,35 @@ clock.granularity = "minutes";
 import { preferences } from "user-settings";
 import { vibration } from "haptics";
 import { style, stopStyle } from "./style.js"
+import { format } from "path";
 
 //grab screen elements
 const time = document.getElementById("time");
 const progressArc = document.getElementById("progressArc");
-const countdown = document.getElementById("countdown");
-const sprintCounter = document.getElementById("sprintCounter");
-const currentIntervalText = document.getElementById("currentIntervalText");
+const countdownText = document.getElementById("countdown");
+const setCounter = document.getElementById("setCounter");
+const currentSprintText = document.getElementById("currentSprintText");
 const playPauseButton = document.getElementById("playPauseButton");
 const playPauseIcon = playPauseButton.getElementById("combo-button-icon");
 const playPauseIconPressed = playPauseButton.getElementById("combo-button-icon-press");
 const restartSkipButton = document.getElementById("restartSkipButton");
 const restartSkipIcon = restartSkipButton.getElementById("combo-button-icon");
 
-
 //Default these incase they haven't setup custom times on mobile app
-const totalFlowInSeconds = 1500;
+const totalFlowInSeconds = 5;//1500;
 const totalShortBreakInSeconds = 10;//300;
 const totalLongBreakInSeconds = 15;//900;
-const totalSprints = 4;
+const totalSets = 4;
 const flowText = "Flow";
 const breakText = "Break";
 
-let counting = false;
-let countdownSeconds = totalFlowInSeconds; 
+let paused = true;
 let flow = true; //used to toggle between flow intervals and breaks
-let currentIntervalTime;
-let currentSprint = 1;
+let currentSprintTotalTime;
+let currentSet = 1;
+let deadlineInSeconds;
+let timeLeft = totalFlowInSeconds;
+var countdown;
 
 //setup clock
 clock.ontick = (evt) => {
@@ -52,31 +57,27 @@ clock.ontick = (evt) => {
 }
 
 setupWithUserSettings();
-style(display);
-//clock.tick does not run in background so use setInterval instead
-setInterval(() => progress(), 1000)
+style();
+progress();
+
 playPauseButton.onactivate = (evt) => {
-  counting ? pause() : play();
+  paused ? play() : pause();
 }
-
 restartSkipButton.onactivate = (evt) => {
-  counting ? restart() : skip();
+  paused ? skip() : restart();
 }
-
 display.onchange = () => { // optimize battery life
     display.on ? style() : stopStyle();
 }
-
 messaging.peerSocket.onmessage = (evt)=>{
   //persist
   writeToFile(evt.data, "flowSettings.txt");
   setupWithUserSettings();
 }
-
 me.onunload = () => {
   //save data on exit
   let text = flow ? flowText : breakText;
-  writeToFile({closeTime: Date.now(), timeLeft: countdownSeconds, text: text, state: currentIntervalTime, flow: flow, sprint: currentSprint, counting: counting},"saveState.txt");
+  writeToFile({deadlineInSeconds: deadlineInSeconds, timeLeft: timeLeft, state: currentSprintTotalTime, flow: flow, set: currentSet, paused: paused}, "saveState.txt");
 }
 
 
@@ -92,26 +93,27 @@ function writeToFile(data, fileName){
 
 function secondsToAngle(seconds){
   //degree per second * elapsedseconds
-  return (360/currentIntervalTime) * seconds;
+  return (360/currentSprintTotalTime) * seconds;
 }
 
 function progress(){
-  if (counting){
-    if( !isSprintOver(countdownSeconds) ) {
-      countdownSeconds--;
-    }
+  if( !isSprintOver(deadlineInSeconds) ) {
+    let t = calculateRemainingTimeInSeconds(deadlineInSeconds);
     if (display.on) {
+      formatCountdown(t);
       //calculate and update angle
-      progressArc.sweepAngle = secondsToAngle(currentIntervalTime - countdownSeconds);
+      progressArc.sweepAngle = secondsToAngle(currentSprintTotalTime - t);
     }
-  }
-  if (display.on) {
-    formatCountdown(countdownSeconds);
   }
 }
 
-function isSprintOver(seconds){
-  if(seconds === 0){
+function calculateRemainingTimeInSeconds(deadlineInSeconds){
+  let t = deadlineInSeconds - (Date.now()/1000);
+  return t;
+}
+
+function isSprintOver(deadlineInSeconds){
+  if(Date.now()/1000 >= deadlineInSeconds){
     pause();
     nextSprint();
     return true;
@@ -124,25 +126,69 @@ function nextSprint(){
   flow = !flow;
   
   if (flow){ 
-    currentSprint < totalSprints ? currentSprint++ : currentSprint = 1;
-    setupNextInterval(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, currentSprint);
+    currentSet < totalSets ? currentSet++ : currentSet = 1;
+    setupSprint(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, (Date.now()/1000) + totalFlowInSeconds);
 
   }
   else { 
-    if(currentSprint < totalSprints){
-      setupNextInterval(totalShortBreakInSeconds, totalShortBreakInSeconds, breakText, 0, currentSprint);
+    if(currentSet < totalSets){
+      setupSprint(totalShortBreakInSeconds, totalShortBreakInSeconds, breakText, 0, (Date.now()/1000) + totalShortBreakInSeconds);
     }
     else{
-      setupNextInterval(totalLongBreakInSeconds, totalLongBreakInSeconds, breakText, 0, currentSprint);
+      setupSprint(totalLongBreakInSeconds, totalLongBreakInSeconds, breakText, 0, (Date.now()/1000) + totalLongBreakInSeconds);
     }
   }
   
   vibration.start("nudge");
 }
 
+function setupSprint(sprintTotalTime, left, text, angleLeft, deadline){
+  progressArc.sweepAngle = angleLeft;
+  currentSprintText.text = text;
+
+  currentSprintTotalTime = sprintTotalTime;
+  timeLeft = left;
+  deadlineInSeconds = deadline;
+  
+  formatCountdown(timeLeft);
+  setCounter.text = `${currentSet} of ${totalSets}`;
+}
+
+function play(){
+    paused = false;
+    deadlineInSeconds = (Date.now()/1000) + timeLeft;
+    timeLeft = 0;
+    playPauseIcon.image = "pause.png";
+    playPauseIconPressed.image = "pause_press.png";
+    restartSkipIcon.image = "reset.png";
+    //clock.tick does not run in background so use setInterval instead
+    countdown = setInterval(() => progress(), 1000);
+}
+
+function pause(){
+    paused = true;
+    //stop the clock
+    clearInterval(countdown);
+    timeLeft = calculateRemainingTimeInSeconds(deadlineInSeconds);
+    playPauseIcon.image = "play.png";
+    playPauseIconPressed.image = "play_press.png";
+    restartSkipIcon.image = "skip.png";
+}
+
+function skip(){
+  pause();
+  timeLeft = 0;
+  nextSprint();
+}
+
+function restart(){
+  pause();
+  setupSprint(currentSprintTotalTime, currentSprintTotalTime, flow ? flowText : breakText, 0, (Date.now()/1000) + currentSprintTotalTime);
+}
+
 function setupWithUserSettings(){
   let settings;
-  try {
+  try { //read settings about time intervals
     settings = fs.readFileSync("flowSettings.txt", "cbor");
   }
   catch(err){
@@ -155,67 +201,35 @@ function setupWithUserSettings(){
   totalLongBreakInSeconds = settings.longBreakTime == 0 ? totalLongBreakInSeconds : parseInt(settings.longBreakTime)*60;
   
   //pick up where the user ended
-  try {
-    //{closeTime: Date.now(), timeLeft: countdownSeconds, text: text, state: currentIntervalTime, sprint: currentSprint, counting: counting}
-    let saveState = fs.readFileSync("saveState.txt", "cbor");
-    //secondsLeft when app closed - seconds passed since exit
-    let secondsLeft = saveState.timeLeft - ((Date.now() - parseInt(saveState.closeTime))/1000);
-    secondsLeft <= 0 ? 0 : Math.ceil(secondsLeft);
-    countdownSeconds = secondsLeft; 
-    flow = saveState.flow;
-    currentIntervalTime = saveState.state;
-    currentSprint = saveState.sprint;
-    if (secondsLeft <= 0){
-      pause();
-      nextSprint();
-    }
-    else{
-      saveState.counting ? play() : pause();
-      setupNextInterval(currentIntervalTime, countdownSeconds, saveState.text, secondsToAngle(currentIntervalTime - countdownSeconds), currentSprint);
-    }
+  try { //read settings about past states
+    restorePreviousSession(fs.readFileSync("saveState.txt", "cbor"));
   }
   catch (err) {
     console.log(err);
-    setupNextInterval(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, currentSprint);
+    setupSprint(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, (Date.now()/1000) + totalFlowInSeconds);
   } 
 }
 
-function setupNextInterval(nextIntervalSeconds, secondsLeft, text, angleLeft, currentSprint){
-  //change the arc back to 0
-  progressArc.sweepAngle = angleLeft;
-  //update interval text
-  currentIntervalText.text = text;
-  //set the correct seconds for progress
-  currentIntervalTime = nextIntervalSeconds;
-  countdownSeconds = secondsLeft;
-  currentIntervalText.text = text;
-  sprintCounter.text = `${currentSprint} of ${totalSprints}`;
-}
+function restorePreviousSession(saveState){
+    timeLeft = calculateRemainingTimeInSeconds(saveState.deadlineInSeconds);
 
-function play(){
-    counting = true;
-    playPauseIcon.image = "pause.png";
-    playPauseIconPressed.image = "pause_press.png";
-  
-    restartSkipIcon.image = "reset.png";
-}
+    //set state variables
+    deadlineInSeconds = saveState.deadlineInSeconds;
 
-function pause(){
-    counting = false;
-    playPauseIcon.image = "play.png";
-    playPauseIconPressed.image = "play_press.png";
-  
-    restartSkipIcon.image = "skip.png";
-}
 
-function skip(){
-  counting = false;
-  nextSprint();
-}
+    flow = saveState.flow;
+    currentSprintTotalTime = saveState.state;
+    currentSet = saveState.set;
 
-function restart(){
-  pause();
-  setupNextInterval(currentIntervalTime, currentIntervalTime, flow ? flowText : breakText, 0, currentSprint);
+    let text = flow ? flowText : breakText;
+    deadlineInSeconds = saveState.paused ? (Date.now()/1000) + saveState.timeLeft : saveState.deadlineInSeconds;
+    saveState.paused ? pause() : play();
+    if ( deadlineInSeconds >= (Date.now()/1000) || saveState.paused){
+      setupSprint(currentSprintTotalTime, timeLeft, text, secondsToAngle(currentSprintTotalTime - deadlineInSeconds), deadlineInSeconds);
+    }
+    else{  //finished sprint while our of app, so move to the next
+      skip();
+    }  
 }
 
 function formatCountdown(seconds){
@@ -230,5 +244,5 @@ function formatCountdown(seconds){
   formattedSeconds = formattedSeconds < 10 ? "0" + formattedSeconds : formattedSeconds;
 
   //update countdown text
-  countdown.text = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  countdownText.text = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 }
