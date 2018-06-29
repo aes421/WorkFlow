@@ -17,6 +17,7 @@ import { style, stopStyle } from "./style.js"
 import { format } from "path";
 
 //grab screen elements
+const background = document.getElementById("background");
 const time = document.getElementById("time");
 const progressArc = document.getElementById("progressArc");
 const countdownText = document.getElementById("countdown");
@@ -57,6 +58,11 @@ clock.ontick = (evt) => {
 }
 
 setupWithUserSettings();
+try{
+  let s = fs.readFileSync("styleSettings.txt", "cbor");
+  background.value = s.value;
+}
+catch (err){}
 style();
 progress();
 
@@ -81,6 +87,7 @@ messaging.peerSocket.onmessage = (evt)=>{
 me.onunload = () => {
   //save data on exit
   saveStateToFile();
+  writeToFile({value: background.value} ,"styleSettings.txt");
 }
 
 function saveStateToFile(){
@@ -213,8 +220,7 @@ function setupWithUserSettings(){
     settings = fs.readFileSync("flowSettings.txt", "cbor");
   }
   catch(err){
-    settings = {flowTime: 0, shortBreakTime: 0, longBreakTime: 0}
-    //writeToFile({flowTime: 0, shortBreakTime: 0, longBreakTime: 0}, "flowSettings.txt");
+    settings = {flowTime: 0, shortBreakTime: 0, longBreakTime: 0};
   }
   //setup consts based on user settings
   totalFlowInSeconds = settings.flowTime == 0 ? totalFlowInSeconds : parseInt(settings.flowTime)*60;
