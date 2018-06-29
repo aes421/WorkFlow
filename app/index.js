@@ -29,9 +29,9 @@ const restartSkipButton = document.getElementById("restartSkipButton");
 const restartSkipIcon = restartSkipButton.getElementById("combo-button-icon");
 
 //Default these incase they haven't setup custom times on mobile app
-const totalFlowInSeconds = 5;//1500;
-const totalShortBreakInSeconds = 10;//300;
-const totalLongBreakInSeconds = 15;//900;
+const totalFlowInSeconds = 1500;
+const totalShortBreakInSeconds = 300;
+const totalLongBreakInSeconds= 900;
 const totalSets = 4;
 const flowText = "Flow";
 const breakText = "Break";
@@ -41,7 +41,7 @@ let flow = true; //used to toggle between flow intervals and breaks
 let currentSprintTotalTime;
 let currentSet = 1;
 let deadlineInSeconds;
-let timeLeft = totalFlowInSeconds;
+let timeLeft; //= totalFlowInSeconds;
 var countdown;
 
 //setup clock
@@ -72,12 +72,30 @@ display.onchange = () => { // optimize battery life
 messaging.peerSocket.onmessage = (evt)=>{
   //persist
   writeToFile(evt.data, "flowSettings.txt");
+  //determine time left
+  paused = true;
+  saveStateToFile();
   setupWithUserSettings();
+  restart();
 }
 me.onunload = () => {
   //save data on exit
-  let text = flow ? flowText : breakText;
-  writeToFile({deadlineInSeconds: deadlineInSeconds, timeLeft: timeLeft, state: currentSprintTotalTime, flow: flow, set: currentSet, paused: paused}, "saveState.txt");
+  saveStateToFile();
+}
+
+function saveStateToFile(){
+   let text = flow ? flowText : breakText;
+    let breakState = null;
+    if (!flow){
+      console.log(`${currentSprintTotalTime} === ${totalShortBreakInSeconds}`);
+      if (currentSprintTotalTime === totalShortBreakInSeconds){
+        breakState = "short";
+      }
+      else{
+        breakState = "long";
+      }
+    }
+    writeToFile({deadlineInSeconds: deadlineInSeconds, timeLeft: timeLeft, breakState: breakState, flow: flow, set: currentSet, paused: paused}, "saveState.txt");
 }
 
 
@@ -127,6 +145,7 @@ function nextSprint(){
   
   if (flow){ 
     currentSet < totalSets ? currentSet++ : currentSet = 1;
+    console.log(`nextSprint`);
     setupSprint(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, (Date.now()/1000) + totalFlowInSeconds);
 
   }
@@ -166,6 +185,7 @@ function play(){
 }
 
 function pause(){
+    console.log(`pause`);
     paused = true;
     //stop the clock
     clearInterval(countdown);
@@ -183,6 +203,7 @@ function skip(){
 
 function restart(){
   pause();
+  console.log(`restart`);
   setupSprint(currentSprintTotalTime, currentSprintTotalTime, flow ? flowText : breakText, 0, (Date.now()/1000) + currentSprintTotalTime);
 }
 
@@ -193,12 +214,14 @@ function setupWithUserSettings(){
   }
   catch(err){
     settings = {flowTime: 0, shortBreakTime: 0, longBreakTime: 0}
-    writeToFile({flowTime: 0, shortBreakTime: 0, longBreakTime: 0}, "flowSettings.txt");
+    //writeToFile({flowTime: 0, shortBreakTime: 0, longBreakTime: 0}, "flowSettings.txt");
   }
   //setup consts based on user settings
   totalFlowInSeconds = settings.flowTime == 0 ? totalFlowInSeconds : parseInt(settings.flowTime)*60;
   totalShortBreakInSeconds = settings.shortBreakTime == 0?  totalShortBreakInSeconds : parseInt(settings.shortBreakTime)*60;
   totalLongBreakInSeconds = settings.longBreakTime == 0 ? totalLongBreakInSeconds : parseInt(settings.longBreakTime)*60;
+  currentSprintTotalTime = totalFlowInSeconds;
+  timeLeft = currentSprintTotalTime;
   
   //pick up where the user ended
   try { //read settings about past states
@@ -206,6 +229,7 @@ function setupWithUserSettings(){
   }
   catch (err) {
     console.log(err);
+    console.log(`err`);
     setupSprint(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, (Date.now()/1000) + totalFlowInSeconds);
   } 
 }
@@ -218,14 +242,35 @@ function restorePreviousSession(saveState){
 
 
     flow = saveState.flow;
-    currentSprintTotalTime = saveState.state;
+    if(flow){
+      currentSprintTotalTime = totalFlowInSeconds;
+    }
+    else{
+      if (saveState.breakState === "short"){
+        console.log(saveState.breakState);
+        currentSprintTotalTime = totalShortBreakInSeconds;
+      }
+      else if (saveState.breakState === "long"){
+        console.log(saveState.breakState);
+        currentSprintTotalTime = totalLongBreakInSeconds;
+      }
+      else{  //something went wrong
+        console.log("ERR" + saveState.breakState);
+        console.log(typeof saveState.breakState);
+        console.log(saveState.breakState == "short");
+        currentSprintTotalTime = 0;
+        skip();
+      }
+    }
+    
     currentSet = saveState.set;
 
     let text = flow ? flowText : breakText;
     deadlineInSeconds = saveState.paused ? (Date.now()/1000) + saveState.timeLeft : saveState.deadlineInSeconds;
     saveState.paused ? pause() : play();
     if ( deadlineInSeconds >= (Date.now()/1000) || saveState.paused){
-      setupSprint(currentSprintTotalTime, timeLeft, text, secondsToAngle(currentSprintTotalTime - deadlineInSeconds), deadlineInSeconds);
+      console.log(`RESTORE setting up with total time ${currentSprintTotalTime}, timeleft ${timeLeft} and angle ${secondsToAngle(currentSprintTotalTime - timeLeft)}`);
+      setupSprint(currentSprintTotalTime, timeLeft, text, secondsToAngle(currentSprintTotalTime - timeLeft), deadlineInSeconds);
     }
     else{  //finished sprint while our of app, so move to the next
       skip();
