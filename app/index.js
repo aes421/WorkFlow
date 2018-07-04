@@ -16,9 +16,6 @@ import { vibration } from "haptics";
 import { style, stopStyle } from "./style.js"
 import { format } from "path";
 
-//grab screen elements
-const background = document.getElementById("background");
-const time = document.getElementById("time");
 const progressArc = document.getElementById("progressArc");
 const countdownText = document.getElementById("countdown");
 const setCounter = document.getElementById("setCounter");
@@ -30,22 +27,29 @@ const restartSkipButton = document.getElementById("restartSkipButton");
 const restartSkipIcon = restartSkipButton.getElementById("combo-button-icon");
 
 //Default these incase they haven't setup custom times on mobile app
-const totalFlowInSeconds = 1500;
-const totalShortBreakInSeconds = 300;
-const totalLongBreakInSeconds= 900;
-const totalSets = 4;
-const flowText = "Flow";
-const breakText = "Break";
+const appSettings = {
+  totalFlowInSeconds : 1500,
+  totalShortBreakInSeconds : 300,
+  totalLongBreakInSeconds : 900,
+  totalSets : 4,
+  flowText : "Flow",
+  breakText : "Break"
+};
 
-let paused = true;
-let flow = true; //used to toggle between flow intervals and breaks
-let currentSprintTotalTime;
-let currentSet = 1;
-let deadlineInSeconds;
-let timeLeft; //= totalFlowInSeconds;
-var countdown;
+
+let sprintSettings = {
+  paused: true,
+  flow: true,
+  totalTime: 0,
+  set: 1,
+  deadlineInSeconds: 0,
+  timeLeft: 0
+};
+
+let countdownInterval;
 
 //setup clock
+const timeText = document.getElementById("time").text;
 clock.ontick = (evt) => {
   let hours;
   let minutes;
@@ -54,89 +58,115 @@ clock.ontick = (evt) => {
   hours = hours > 12 && preferences.clockDisplay === "12h" ? hours - 12 : hours;
   hours = hours < 10 ? "0" + hours : hours;
   minutes = minutes < 10 ? "0" + minutes : minutes;
-  time.text = `${hours}:${minutes}`;
+  timeText = `${hours}:${minutes}`;
 }
 
 setupWithUserSettings();
 try{
   let s = fs.readFileSync("styleSettings.txt", "cbor");
-  background.value = s.value;
+  document.getElementById("background").value = s.value;
 }
-catch (err){}
+catch (err){
+  document.getElementById("background").value = 0;
+}
 style();
 progress();
 
+//button handlers
 playPauseButton.onactivate = (evt) => {
-  paused ? play() : pause();
+  sprintSettings.paused ? play() : pause();
 }
 restartSkipButton.onactivate = (evt) => {
-  paused ? skip() : restart();
+  sprintSettings.paused ? skip() : restart();
 }
 display.onchange = () => { // optimize battery life
     display.on ? style() : stopStyle();
 }
+
+//called when settings are changed via fitbit app
 messaging.peerSocket.onmessage = (evt)=>{
   //persist
+  pause();
   writeToFile(evt.data, "flowSettings.txt");
-  //determine time left
-  paused = true;
   saveStateToFile();
   setupWithUserSettings();
   restart();
 }
+
+//save data on exit
 me.onunload = () => {
-  //save data on exit
   saveStateToFile();
-  writeToFile({value: background.value} ,"styleSettings.txt");
+  writeToFile({value: document.getElementById("background").value} ,"styleSettings.txt");
 }
 
 function saveStateToFile(){
-   let text = flow ? flowText : breakText;
+   let text = sprintSettings.flow ? appSettings.flowText : appSettings.breakText;
     let breakState = null;
-    if (!flow){
-      console.log(`${currentSprintTotalTime} === ${totalShortBreakInSeconds}`);
-      if (currentSprintTotalTime === totalShortBreakInSeconds){
+    if (!sprintSettings.flow){
+      if (sprintSettings.totalTime === appSettings.totalShortBreakInSeconds){
         breakState = "short";
       }
       else{
         breakState = "long";
       }
     }
-    writeToFile({deadlineInSeconds: deadlineInSeconds, timeLeft: timeLeft, breakState: breakState, flow: flow, set: currentSet, paused: paused}, "saveState.txt");
+    writeToFile({deadlineInSeconds: sprintSettings.deadlineInSeconds, timeLeft: sprintSettings.timeLeft, breakState: breakState, flow: sprintSettings.flow, set: sprintSettings.set, paused: sprintSettings.paused}, "saveState.txt");
 }
 
 
 function writeToFile(data, fileName){
-  let log;
-  log = 'write to file: {';
+  let log = 'write to file: {';
   for (var prop in data){
     log += ` ${prop}:${data[prop]}`;  
   }
   console.log(log + " }");
+
   fs.writeFileSync(fileName, data, "cbor");
 }
 
+/**
+ * Uses the total time of the current sprint to determine what degree each
+ * second corresponds to, then mulitplies that by the amount of seconds passed
+ * to set the progress arc
+ * @param {int} seconds - how many seconds have passed
+ */
 function secondsToAngle(seconds){
   //degree per second * elapsedseconds
-  return (360/currentSprintTotalTime) * seconds;
+  progressArc.sweepAngle = (360/sprintSettings.totalTime) * seconds;
 }
 
+/**
+ * The main loop of this app.  It's purpose is to calculate how much time is left in
+ * the sprint, and then update the countdown timer and progress arc
+ */
 function progress(){
-  if( !isSprintOver(deadlineInSeconds) ) {
-    let t = calculateRemainingTimeInSeconds(deadlineInSeconds);
+  if( !isSprintOver(sprintSettings.deadlineInSeconds) ) {
+    let t = Math.ceil(sprintSettings.deadlineInSeconds - (Date.now()/1000));
     if (display.on) {
       formatCountdown(t);
       //calculate and update angle
-      progressArc.sweepAngle = secondsToAngle(currentSprintTotalTime - t);
+      secondsToAngle(sprintSettings.totalTime - t);
     }
   }
 }
 
+/**
+ * Takes in the time the current sprint will end and returns
+ * the seconds remaining between right now and then
+ * @param {int} deadlineInSeconds - time in seconds that the current sprint will end
+ * @returns {int} t - seconds between now and the deadline
+ */
 function calculateRemainingTimeInSeconds(deadlineInSeconds){
   let t = deadlineInSeconds - (Date.now()/1000);
   return t;
 }
 
+/**
+ * Determines if the current sprint is over by comparing if the deadline is passed
+ * the current time.  If so, it pauses and sets up the next sprint
+ * @param {int} deadlineInSeconds 
+ * @returns {bool} - true if over, false if not
+ */
 function isSprintOver(deadlineInSeconds){
   if(Date.now()/1000 >= deadlineInSeconds){
     pause();
@@ -148,55 +178,62 @@ function isSprintOver(deadlineInSeconds){
 
 function nextSprint(){
   //swap interval type
-  flow = !flow;
+  sprintSettings.flow = !sprintSettings.flow;
   
-  if (flow){ 
-    currentSet < totalSets ? currentSet++ : currentSet = 1;
+  if (sprintSettings.flow){ 
+    sprintSettings.set < appSettings.totalSets ? sprintSettings.set++ : sprintSettings.set = 1;
     console.log(`nextSprint`);
-    setupSprint(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, (Date.now()/1000) + totalFlowInSeconds);
+    setupSprint(appSettings.totalFlowInSeconds, appSettings.totalFlowInSeconds, appSettings.flowText, 0, (Date.now()/1000) + appSettings.totalFlowInSeconds);
 
   }
   else { 
-    if(currentSet < totalSets){
-      setupSprint(totalShortBreakInSeconds, totalShortBreakInSeconds, breakText, 0, (Date.now()/1000) + totalShortBreakInSeconds);
+    if(sprintSettings.set < appSettings.totalSets){
+      setupSprint(appSettings.totalShortBreakInSeconds, appSettings.totalShortBreakInSeconds, appSettings.breakText, 0, (Date.now()/1000) + appSettings.totalShortBreakInSeconds);
     }
     else{
-      setupSprint(totalLongBreakInSeconds, totalLongBreakInSeconds, breakText, 0, (Date.now()/1000) + totalLongBreakInSeconds);
+      setupSprint(appSettings.totalLongBreakInSeconds, appSettings.totalLongBreakInSeconds, appSettings.breakText, 0, (Date.now()/1000) + appSettings.totalLongBreakInSeconds);
     }
   }
   
   vibration.start("nudge");
 }
 
+// let sprintSettings = {
+//   paused: true,
+//   flow: true,
+//   totalTime: 0,
+//   set: 1,
+//   deadlineInSeconds: 0,
+//   timeLeft: 0
+// };
 function setupSprint(sprintTotalTime, left, text, angleLeft, deadline){
-  progressArc.sweepAngle = angleLeft;
+  secondsToAngle(angleLeft);
   currentSprintText.text = text;
 
-  currentSprintTotalTime = sprintTotalTime;
-  timeLeft = left;
-  deadlineInSeconds = deadline;
+  sprintSettings.totalTime = sprintTotalTime;
+  sprintSettings.timeLeft = left;
+  sprintSettings.deadlineInSeconds = deadline;
   
-  formatCountdown(timeLeft);
-  setCounter.text = `${currentSet} of ${totalSets}`;
+  formatCountdown(sprintSettings.timeLeft);
+  setCounter.text = `${sprintSettings.set} of ${appSettings.totalSets}`;
 }
 
 function play(){
-    paused = false;
-    deadlineInSeconds = (Date.now()/1000) + timeLeft;
-    timeLeft = 0;
+    sprintSettings.paused = false;
+    sprintSettings.deadlineInSeconds = (Date.now()/1000) + sprintSettings.timeLeft;
+    sprintSettings.timeLeft = 0;
     playPauseIcon.image = "pause.png";
     playPauseIconPressed.image = "pause_press.png";
     restartSkipIcon.image = "reset.png";
     //clock.tick does not run in background so use setInterval instead
-    countdown = setInterval(() => progress(), 1000);
+    countdownInterval = setInterval(() => progress(), 1000);
 }
 
 function pause(){
-    console.log(`pause`);
-    paused = true;
+    sprintSettings.paused = true;
     //stop the clock
-    clearInterval(countdown);
-    timeLeft = calculateRemainingTimeInSeconds(deadlineInSeconds);
+    clearInterval(countdownInterval);
+    sprintSettings.timeLeft = calculateRemainingTimeInSeconds(sprintSettings.deadlineInSeconds);
     playPauseIcon.image = "play.png";
     playPauseIconPressed.image = "play_press.png";
     restartSkipIcon.image = "skip.png";
@@ -204,14 +241,13 @@ function pause(){
 
 function skip(){
   pause();
-  timeLeft = 0;
+  sprintSettings.timeLeft = 0;
   nextSprint();
 }
 
 function restart(){
   pause();
-  console.log(`restart`);
-  setupSprint(currentSprintTotalTime, currentSprintTotalTime, flow ? flowText : breakText, 0, (Date.now()/1000) + currentSprintTotalTime);
+  setupSprint(sprintSettings.totalTime, sprintSettings.totalTime, sprintSettings.flow ? appSettings.flowText : appSettings.breakText, 0, (Date.now()/1000) + sprintSettings.totalTime);
 }
 
 function setupWithUserSettings(){
@@ -223,11 +259,11 @@ function setupWithUserSettings(){
     settings = {flowTime: 0, shortBreakTime: 0, longBreakTime: 0};
   }
   //setup consts based on user settings
-  totalFlowInSeconds = settings.flowTime == 0 ? totalFlowInSeconds : parseInt(settings.flowTime)*60;
-  totalShortBreakInSeconds = settings.shortBreakTime == 0?  totalShortBreakInSeconds : parseInt(settings.shortBreakTime)*60;
-  totalLongBreakInSeconds = settings.longBreakTime == 0 ? totalLongBreakInSeconds : parseInt(settings.longBreakTime)*60;
-  currentSprintTotalTime = totalFlowInSeconds;
-  timeLeft = currentSprintTotalTime;
+  appSettings.totalFlowInSeconds = settings.flowTime == 0 ? appSettings.totalFlowInSeconds : parseInt(settings.flowTime)*60;
+  appSettings.totalShortBreakInSeconds = settings.shortBreakTime == 0?  appSettings.totalShortBreakInSeconds : parseInt(settings.shortBreakTime)*60;
+  appSettings.totalLongBreakInSeconds = settings.longBreakTime == 0 ? appSettings.totalLongBreakInSeconds : parseInt(settings.longBreakTime)*60;
+  sprintSettings.totalTime = appSettings.totalFlowInSeconds;
+  sprintSettings.timeLeft = sprintSettings.totalTime;
   
   //pick up where the user ended
   try { //read settings about past states
@@ -236,47 +272,47 @@ function setupWithUserSettings(){
   catch (err) {
     console.log(err);
     console.log(`err`);
-    setupSprint(totalFlowInSeconds, totalFlowInSeconds, flowText, 0, (Date.now()/1000) + totalFlowInSeconds);
+    setupSprint(appSettings.totalFlowInSeconds, appSettings.totalFlowInSeconds, appSettings.flowText, 0, (Date.now()/1000) + appSettings.totalFlowInSeconds);
   } 
 }
 
 function restorePreviousSession(saveState){
-    timeLeft = calculateRemainingTimeInSeconds(saveState.deadlineInSeconds);
+    sprintSettings.timeLeft = calculateRemainingTimeInSeconds(saveState.deadlineInSeconds);
 
     //set state variables
-    deadlineInSeconds = saveState.deadlineInSeconds;
+    sprintSettings.deadlineInSeconds = saveState.deadlineInSeconds;
 
 
-    flow = saveState.flow;
-    if(flow){
-      currentSprintTotalTime = totalFlowInSeconds;
+    sprintSettings.flow = saveState.flow;
+    if(sprintSettings.flow){
+      sprintSettings.totalTime = appSettings.totalFlowInSeconds;
     }
     else{
       if (saveState.breakState === "short"){
         console.log(saveState.breakState);
-        currentSprintTotalTime = totalShortBreakInSeconds;
+        sprintSettings.totalTime = appSettings.totalShortBreakInSeconds;
       }
       else if (saveState.breakState === "long"){
         console.log(saveState.breakState);
-        currentSprintTotalTime = totalLongBreakInSeconds;
+        sprintSettings.totalTime = appSettings.totalLongBreakInSeconds;
       }
       else{  //something went wrong
         console.log("ERR" + saveState.breakState);
         console.log(typeof saveState.breakState);
         console.log(saveState.breakState == "short");
-        currentSprintTotalTime = 0;
+        sprintSettings.totalTime = 0;
         skip();
       }
     }
     
-    currentSet = saveState.set;
+    sprintSettings.set = saveState.set;
 
-    let text = flow ? flowText : breakText;
-    deadlineInSeconds = saveState.paused ? (Date.now()/1000) + saveState.timeLeft : saveState.deadlineInSeconds;
+    let text = sprintSettings.flow ? appSettings.flowText : appSettings.breakText;
+    sprintSettings.deadlineInSeconds = saveState.paused ? (Date.now()/1000) + saveState.timeLeft : saveState.deadlineInSeconds;
     saveState.paused ? pause() : play();
-    if ( deadlineInSeconds >= (Date.now()/1000) || saveState.paused){
-      console.log(`RESTORE setting up with total time ${currentSprintTotalTime}, timeleft ${timeLeft} and angle ${secondsToAngle(currentSprintTotalTime - timeLeft)}`);
-      setupSprint(currentSprintTotalTime, timeLeft, text, secondsToAngle(currentSprintTotalTime - timeLeft), deadlineInSeconds);
+    if ( sprintSettings.deadlineInSeconds >= (Date.now()/1000) || saveState.paused){
+      console.log(`RESTORE setting up with total time ${sprintSettings.totalTime}, sprintSettings.timeLeft ${sprintSettings.timeLeft} and angle ${sprintSettings.totalTime - sprintSettings.timeLeft}`);
+      setupSprint(sprintSettings.totalTime, sprintSettings.timeLeft, text, sprintSettings.totalTime - sprintSettings.timeLeft, sprintSettings.deadlineInSeconds);
     }
     else{  //finished sprint while our of app, so move to the next
       skip();
