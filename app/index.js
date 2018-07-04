@@ -13,18 +13,10 @@ import clock from "clock";
 clock.granularity = "minutes";
 import { preferences } from "user-settings";
 import { vibration } from "haptics";
-import { style, stopStyle } from "./style.js"
-import { format } from "path";
+import { style, stopStyle } from "./style.js";
 
-const progressArc = document.getElementById("progressArc");
 const playPauseButton = document.getElementById("playPauseButton");
-const playPauseIcon = playPauseButton.getElementById("combo-button-icon");
-const playPauseIconPressed = playPauseButton.getElementById("combo-button-icon-press");
 const restartSkipButton = document.getElementById("restartSkipButton");
-const restartSkipIcon = restartSkipButton.getElementById("combo-button-icon");
-const countdownText = document.getElementById("countdown");
-const setCounter = document.getElementById("setCounter");
-const currentSprintText = document.getElementById("currentSprintText");
 
 //Default these incase they haven't setup custom times on mobile app
 const appSettings = {
@@ -36,7 +28,6 @@ const appSettings = {
   breakText : "Break"
 };
 
-
 let sprintSettings = {
   paused: true,
   flow: true,
@@ -46,71 +37,22 @@ let sprintSettings = {
   timeLeft: 0
 };
 
-let countdownInterval;
-
-//setup clock
-const timeText = document.getElementById("time").text;
-clock.ontick = (evt) => {
-  let hours;
-  let minutes;
-  hours = evt.date.getHours();
-  minutes = evt.date.getMinutes();
-  hours = hours > 12 && preferences.clockDisplay === "12h" ? hours - 12 : hours;
-  hours = hours < 10 ? "0" + hours : hours;
-  minutes = minutes < 10 ? "0" + minutes : minutes;
-  timeText = `${hours}:${minutes}`;
-}
-
-setupWithUserSettings();
-try{
-  let s = fs.readFileSync("styleSettings.txt", "cbor");
-  document.getElementById("background").value = s.value;
-}
-catch (err){
-  document.getElementById("background").value = 0;
-}
-style();
-progress();
-
-//button handlers
-playPauseButton.onactivate = (evt) => {
-  sprintSettings.paused ? play() : pause();
-}
-restartSkipButton.onactivate = (evt) => {
-  sprintSettings.paused ? skip() : restart();
-}
-display.onchange = () => { // optimize battery life
-    display.on ? style() : stopStyle();
-}
-
-//called when settings are changed via fitbit app
-messaging.peerSocket.onmessage = (evt)=>{
-  //persist
-  pause();
-  writeToFile(evt.data, "flowSettings.txt");
-  saveStateToFile();
-  setupWithUserSettings();
-  restart();
-}
-
-//save data on exit
-me.onunload = () => {
-  saveStateToFile();
-  writeToFile({value: document.getElementById("background").value} ,"styleSettings.txt");
-}
-
+/**
+ * take all necessary sprint Settings and write them to a file so that the user can
+ * exit the app without losing progress
+ */
 function saveStateToFile(){
-   let text = sprintSettings.flow ? appSettings.flowText : appSettings.breakText;
-    let breakState = null;
-    if (!sprintSettings.flow){
-      if (sprintSettings.totalTime === appSettings.totalShortBreakInSeconds){
-        breakState = "short";
-      }
-      else{
-        breakState = "long";
-      }
+  let text = sprintSettings.flow ? appSettings.flowText : appSettings.breakText;
+  let breakState = null;
+  if (!sprintSettings.flow){
+    if (sprintSettings.totalTime === appSettings.totalShortBreakInSeconds){
+      breakState = "short";
     }
-    writeToFile({deadlineInSeconds: sprintSettings.deadlineInSeconds, timeLeft: sprintSettings.timeLeft, breakState: breakState, flow: sprintSettings.flow, set: sprintSettings.set, paused: sprintSettings.paused}, "saveState.txt");
+    else{
+      breakState = "long";
+    }
+  }
+  writeToFile({deadlineInSeconds: sprintSettings.deadlineInSeconds, timeLeft: sprintSettings.timeLeft, breakState: breakState, flow: sprintSettings.flow, set: sprintSettings.set, paused: sprintSettings.paused}, "saveState.txt");
 }
 
 
@@ -124,6 +66,7 @@ function writeToFile(data, fileName){
   fs.writeFileSync(fileName, data, "cbor");
 }
 
+const progressArc = document.getElementById("progressArc");
 /**
  * Uses the total time of the current sprint to determine what degree each
  * second corresponds to, then mulitplies that by the amount of seconds passed
@@ -192,18 +135,18 @@ function nextSprint(){
     let set = sprintSettings.set;
     set = set < appSettings.totalSets ? set + 1 : 1;
     deadline = (Date.now()/1000) + appSettings.totalFlowInSeconds
-    setupSprint(flow, appSettings.totalFlowInSeconds, set, deadline, appSettings.totalFlowInSeconds, 0);
+    setupSprint(flow, appSettings.totalFlowInSeconds, set, deadline, appSettings.totalFlowInSeconds);
 
   }
   else { 
     if(sprintSettings.set < appSettings.totalSets){
       deadline = (Date.now()/1000) + appSettings.totalShortBreakInSeconds;
-      setupSprint(flow, appSettings.totalShortBreakInSeconds, sprintSettings.set, deadline, appSettings.totalShortBreakInSeconds, 0);
+      setupSprint(flow, appSettings.totalShortBreakInSeconds, sprintSettings.set, deadline, appSettings.totalShortBreakInSeconds);
 
     }
     else{
       deadline = (Date.now()/1000) + appSettings.totalLongBreakInSeconds;
-      setupSprint(flow, appSettings.totalLongBreakInSeconds, sprintSettings.set, deadline, appSettings.totalLongBreakInSeconds, 0);
+      setupSprint(flow, appSettings.totalLongBreakInSeconds, sprintSettings.set, deadline, appSettings.totalLongBreakInSeconds);
     }
   }
   
@@ -218,10 +161,8 @@ function nextSprint(){
  * @param {int} set 
  * @param {int} deadline 
  * @param {int} timeLeft 
- * @param {string} text 
- * @param {int} angleLeft 
  */
-function setupSprint(flow, totalTime, set, deadline, timeLeft, angleLeft){
+function setupSprint(flow, totalTime, set, deadline, timeLeft){
   sprintSettings.flow = flow;
   sprintSettings.totalTime = totalTime;
   sprintSettings.set = set;
@@ -229,46 +170,49 @@ function setupSprint(flow, totalTime, set, deadline, timeLeft, angleLeft){
   sprintSettings.timeLeft = timeLeft;
   
   formatCountdown(sprintSettings.timeLeft);
-  secondsToAngle(angleLeft);
-  currentSprintText.text = sprintSettings.flow ? appSettings.flowText : appSettings.breakText;;
-  setCounter.text = `${sprintSettings.set} of ${appSettings.totalSets}`;
+  secondsToAngle(totalTime - timeLeft);
+  document.getElementById("currentSprintText").text = sprintSettings.flow ? appSettings.flowText : appSettings.breakText;;
+  document.getElementById("setCounter").text = `${sprintSettings.set} of ${appSettings.totalSets}`;
 }
 
+let countdownInterval;
 function play(){
-    sprintSettings.paused = false;
-    let deadline = (Date.now()/1000) + sprintSettings.timeLeft;
-    let angle = sprintSettings.totalTime - sprintSettings.timeLeft;
-    setupSprint(sprintSettings.flow, sprintSettings.totalTime, sprintSettings.set, deadline, sprintSettings.timeLeft, angle);
-    playPauseIcon.image = "pause.png";
-    playPauseIconPressed.image = "pause_press.png";
-    restartSkipIcon.image = "reset.png";
-    //clock.tick does not run in background so use setInterval instead
-    countdownInterval = setInterval(() => progress(), 1000);
+  sprintSettings.paused = false;
+  let deadline = (Date.now()/1000) + sprintSettings.timeLeft;
+  setupSprint(sprintSettings.flow, sprintSettings.totalTime, sprintSettings.set, deadline, sprintSettings.timeLeft);
+  
+  //clock.tick does not run in background so use setInterval instead
+  countdownInterval = setInterval(() => progress(), 1000);
+ 
+  playPauseButton.getElementById("combo-button-icon").image = "pause.png";
+  playPauseButton.getElementById("combo-button-icon-press").image = "pause_press.png";
+  restartSkipButton.getElementById("combo-button-icon").image = "reset.png";
 }
 
 function pause(){
-    sprintSettings.paused = true;
-    //stop the clock
-    clearInterval(countdownInterval);
-    let timeLeft = calculateRemainingTimeInSeconds(sprintSettings.deadlineInSeconds);
-    let angle = sprintSettings.totalTime - timeLeft;
-    setupSprint(sprintSettings.flow, sprintSettings.totalTime, sprintSettings.set, sprintSettings.deadlineInSeconds, timeLeft, angle);
-    playPauseIcon.image = "play.png";
-    playPauseIconPressed.image = "play_press.png";
-    restartSkipIcon.image = "skip.png";
-}
-
-function skip(){
-  sprintSettings.timeLeft = 0;
-  nextSprint();
+  sprintSettings.paused = true;
+  //stop the clock
+  clearInterval(countdownInterval);
+  let timeLeft = Math.ceil(calculateRemainingTimeInSeconds(sprintSettings.deadlineInSeconds));
+  let angle = sprintSettings.totalTime - timeLeft;
+  setupSprint(sprintSettings.flow, sprintSettings.totalTime, sprintSettings.set, sprintSettings.deadlineInSeconds, timeLeft);
+  playPauseButton.getElementById("combo-button-icon").image = "play.png";
+  playPauseButton.getElementById("combo-button-icon-press").image = "play_press.png";
+  restartSkipButton.getElementById("combo-button-icon").image = "skip.png";
 }
 
 function restart(){
   pause();
   let deadline = (Date.now()/1000) + sprintSettings.totalTime;
-  setupSprint(sprintSettings.flow, sprintSettings.totalTime, sprintSettings.set, deadline, sprintSettings.totalTime, 0);
+  setupSprint(sprintSettings.flow, sprintSettings.totalTime, sprintSettings.set, deadline, sprintSettings.totalTime);
 }
 
+/**
+ * First reads flowSettings.txt to get the user specified time intervals (set in
+ * the fitbit app).  Then it attempts to read saveState.txt and restore the previous
+ * session.  If it cannot find a previous session file, it starts with session
+ * over from the beginning
+ */
 function setupWithUserSettings(){
   let settings;
   try { //read settings about time intervals
@@ -289,11 +233,19 @@ function setupWithUserSettings(){
   catch (err) {
     console.log(err);
     let deadline = (Date.now()/1000) + appSettings.totalFlowInSeconds;
-    setupSprint(true, appSettings.totalFlowInSeconds, 1, deadline, appSettings.totalFlowInSeconds, 0);
+    setupSprint(true, appSettings.totalFlowInSeconds, 1, deadline, appSettings.totalFlowInSeconds);
+    pause();
   } 
 }
 
+/**
+ * takes the file contents that were in saveState.txt and calls setupSprint with the
+ * appropriate settings.  If the sprint was finished while they were not in the app
+ * it moves to the next sprint
+ * @param {object} saveState 
+ */
 function restorePreviousSession(saveState){
+
   saveState.paused ? pause() : play();
 
   let totalTime;
@@ -307,25 +259,20 @@ function restorePreviousSession(saveState){
     else if (saveState.breakState === "long"){
       totalTime = appSettings.totalLongBreakInSeconds;
     }
-    else{  //something went wrong TODO WE PROBABLY NEED TO SETUP THE INTERVAL BEFORE SKIPPING??
-      totalTime = 0;
-      skip();
-    }
   }
 
   let deadline = saveState.paused ? (Date.now()/1000) + saveState.timeLeft : saveState.deadlineInSeconds;
 
   let timeLeft = calculateRemainingTimeInSeconds(deadline);
   
-  if ( deadline >= (Date.now()/1000) || saveState.paused){
-    console.log(`RESTORE setting up with total time ${sprintSettings.totalTime}, sprintSettings.timeLeft ${sprintSettings.timeLeft} and angle ${sprintSettings.totalTime - sprintSettings.timeLeft}`);
-    setupSprint(saveState.flow, totalTime, saveState.set, deadline, timeLeft, sprintSettings.totalTime - sprintSettings.timeLeft);
+  console.log(`RESTORE setting up with total time ${sprintSettings.totalTime}, sprintSettings.timeLeft ${sprintSettings.timeLeft} and angle ${sprintSettings.totalTime - sprintSettings.timeLeft}`);
+  setupSprint(saveState.flow, totalTime, saveState.set, deadline, timeLeft);
+  if ( deadline < (Date.now()/1000)){ //finished sprint while our of app, so move to the next
+    nextSprint();
   }
-  else{  //finished sprint while our of app, so move to the next
-    skip();
-  }  
 }
 
+const countdownText = document.getElementById("countdown");
 function formatCountdown(seconds){
   //calculate time left
   let formattedHours = Math.floor((seconds/60/60) % 60);
@@ -339,4 +286,58 @@ function formatCountdown(seconds){
 
   //update countdown text
   countdownText.text = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+}
+
+
+
+//setup clock
+const timeText = document.getElementById("time").text;
+clock.ontick = (evt) => {
+  let hours;
+  let minutes;
+  hours = evt.date.getHours();
+  minutes = evt.date.getMinutes();
+  hours = hours > 12 && preferences.clockDisplay === "12h" ? hours - 12 : hours;
+  hours = hours < 10 ? "0" + hours : hours;
+  minutes = minutes < 10 ? "0" + minutes : minutes;
+  timeText = `${hours}:${minutes}`;
+}
+
+
+setupWithUserSettings();
+try{
+  let s = fs.readFileSync("styleSettings.txt", "cbor");
+  document.getElementById("background").value = s.value;
+}
+catch (err){
+  document.getElementById("background").value = 0;
+}
+style();
+progress();
+//button handlers
+playPauseButton.onactivate = (evt) => {
+  sprintSettings.paused ? play() : pause();
+}
+restartSkipButton.onactivate = (evt) => {
+  sprintSettings.paused ? nextSprint() : restart();
+}
+
+display.onchange = () => { // optimize battery life
+  display.on ? style() : stopStyle();
+}
+
+//called when settings are changed via fitbit app
+messaging.peerSocket.onmessage = (evt)=>{
+  //persist
+  pause();
+  writeToFile(evt.data, "flowSettings.txt");
+  saveStateToFile();
+  setupWithUserSettings();
+  restart();
+}
+
+//save data on exit
+me.onunload = () => {
+  saveStateToFile();
+  writeToFile({value: document.getElementById("background").value} ,"styleSettings.txt");
 }
