@@ -291,7 +291,7 @@ function formatCountdown(seconds){
 
 
 //setup clock
-const timeText = document.getElementById("time").text;
+const timeText = document.getElementById("time");
 clock.ontick = (evt) => {
   let hours;
   let minutes;
@@ -300,7 +300,7 @@ clock.ontick = (evt) => {
   hours = hours > 12 && preferences.clockDisplay === "12h" ? hours - 12 : hours;
   hours = hours < 10 ? "0" + hours : hours;
   minutes = minutes < 10 ? "0" + minutes : minutes;
-  timeText = `${hours}:${minutes}`;
+  timeText.text = `${hours}:${minutes}`;
 }
 
 
