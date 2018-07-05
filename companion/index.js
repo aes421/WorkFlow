@@ -15,13 +15,13 @@ if (me.launchReasons.settingsChanged) {
 }
 
 function sendSettings(){
-  let flowTime = settingsStorage.getItem("flowTimeSlider");
-  let shortTime = settingsStorage.getItem("shortBreakTimeSlider")
-  let longTime = settingsStorage.getItem("longBreakTimeSlider")
+  let flowTime = settingsStorage.getItem("flowTime");
+  let shortTime = settingsStorage.getItem("shortBreakTime")
+  let longTime = settingsStorage.getItem("longBreakTime")
   let data = {
-      flowTime : flowTime ? flowTime.substring(1, flowTime.length-1) : 0,
-      shortBreakTime : shortTime ? shortTime.substring(1, shortTime.length-1) : 0,
-      longBreakTime : longTime ? longTime.substring(1, longTime.length-1) : 0
+      flowTime : flowTime ? flowTime : "25",
+      shortBreakTime : shortTime ? shortTime : "5",
+      longBreakTime : longTime ? longTime : "15"
   }
   
   // If we have a MessageSocket, send the data to the device
