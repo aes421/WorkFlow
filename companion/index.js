@@ -9,8 +9,9 @@ import * as messaging from "messaging";
 // Event fires when a setting is changed
 settingsStorage.onchange = (evt) => { sendSettings(); }
 
-// Settings were changed while the companion was not running
-if (me.launchReasons.settingsChanged) {
+// Listen for the onopen event
+messaging.peerSocket.onopen = function() {
+  // Ready to send or receive messages
   sendSettings();
 }
 
